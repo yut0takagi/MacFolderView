@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="folder-back" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="folder-front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="100%" stop-color="#FBBF24"/>
+    </linearGradient>
+    <linearGradient id="lens" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E0F2FE"/>
+      <stop offset="100%" stop-color="#BAE6FD"/>
+    </linearGradient>
+    <!-- Rounded rect clip for macOS style -->
+    <clipPath id="roundedSquare">
+      <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background with macOS rounded square -->
+  <g clip-path="url(#roundedSquare)">
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <!-- Subtle grid pattern for texture -->
+    <g opacity="0.06">
+      <line x1="0" y1="256" x2="1024" y2="256" stroke="#fff" stroke-width="1"/>
+      <line x1="0" y1="512" x2="1024" y2="512" stroke="#fff" stroke-width="1"/>
+      <line x1="0" y1="768" x2="1024" y2="768" stroke="#fff" stroke-width="1"/>
+      <line x1="256" y1="0" x2="256" y2="1024" stroke="#fff" stroke-width="1"/>
+      <line x1="512" y1="0" x2="512" y2="1024" stroke="#fff" stroke-width="1"/>
+      <line x1="768" y1="0" x2="768" y2="1024" stroke="#fff" stroke-width="1"/>
+    </g>
+  </g>
+
+  <!-- Folder - back panel -->
+  <g transform="translate(180, 260)">
+    <path d="M0,80 Q0,40 40,40 L220,40 L270,0 Q280,-5 295,0 L350,0 Q370,0 380,20 L620,20 Q660,20 660,60 L660,420 Q660,460 620,460 L40,460 Q0,460 0,420 Z"
+          fill="url(#folder-back)" opacity="0.85"/>
+  </g>
+
+  <!-- Folder - front panel -->
+  <g transform="translate(180, 260)">
+    <path d="M-10,140 Q-10,100 30,100 L630,100 Q670,100 670,140 L670,440 Q670,480 630,480 L30,480 Q-10,480 -10,440 Z"
+          fill="url(#folder-front)"/>
+    <!-- File lines on folder -->
+    <rect x="60" y="180" width="280" height="16" rx="8" fill="#F59E0B" opacity="0.5"/>
+    <rect x="60" y="220" width="200" height="16" rx="8" fill="#F59E0B" opacity="0.4"/>
+    <rect x="60" y="260" width="240" height="16" rx="8" fill="#F59E0B" opacity="0.35"/>
+  </g>
+
+  <!-- Magnifying glass -->
+  <g transform="translate(540, 480)">
+    <!-- Glass circle -->
+    <circle cx="120" cy="120" r="110" fill="none" stroke="#fff" stroke-width="36" opacity="0.95"/>
+    <circle cx="120" cy="120" r="80" fill="url(#lens)" opacity="0.3"/>
+    <!-- Glass shine -->
+    <ellipse cx="95" cy="90" rx="30" ry="20" fill="#fff" opacity="0.4" transform="rotate(-30, 95, 90)"/>
+    <!-- Handle -->
+    <line x1="200" y1="200" x2="300" y2="300" stroke="#fff" stroke-width="40" stroke-linecap="round" opacity="0.95"/>
+  </g>
+</svg>
