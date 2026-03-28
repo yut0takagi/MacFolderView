@@ -56,6 +56,9 @@ cat > "$APP/Contents/Info.plist" << EOF
 </plist>
 EOF
 
+# rpathにFrameworksを追加
+install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/MacOS/MacFolderView" 2>/dev/null || true
+
 # ad-hoc署名
 codesign --force --deep --sign - "$APP"
 
