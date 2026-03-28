@@ -64,14 +64,15 @@ EOF
 # rpathにFrameworksを追加
 install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/MacOS/MacFolderView" 2>/dev/null || true
 
-# 内側から外側へ順番にad-hoc署名
+# 内側から外側へ順番にad-hoc署名（identifier指定で安定したdesignated requirement）
+DR='designated => identifier "com.macfolderview.app"'
 SPARKLE_DIR="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
 codesign --force --sign - "$SPARKLE_DIR/XPCServices/Installer.xpc"
 codesign --force --sign - "$SPARKLE_DIR/XPCServices/Downloader.xpc"
 codesign --force --sign - "$SPARKLE_DIR/Autoupdate"
 codesign --force --sign - "$SPARKLE_DIR/Updater.app"
 codesign --force --sign - "$APP/Contents/Frameworks/Sparkle.framework"
-codesign --force --sign - "$APP"
+codesign --force --sign - -i com.macfolderview.app -r="$DR" "$APP"
 
 echo "✓ ビルド完了: $APP"
 
