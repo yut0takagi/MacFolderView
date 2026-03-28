@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct FolderBrowserView: View {
-    @StateObject private var viewModel = FolderViewModel()
+    @StateObject private var viewModel: FolderViewModel = {
+        let vm = FolderViewModel()
+        AppDelegate.sharedViewModel = vm
+        return vm
+    }()
     @State private var transitionId = UUID()
     @FocusState private var isSearchFocused: Bool
 

@@ -9,6 +9,27 @@
     <language>ja</language>
 
     <item>
+      <title>Version 1.3.1</title>
+      <description><![CDATA[
+        <h2>v1.3.1</h2>
+        <ul>
+          <li>キーボードショートカットが効かない問題を修正</li>
+          <li>⌘⇧V（クリップボード履歴）と⌘P（クイックオープン）をグローバルホットキー化 — どのアプリからでも呼び出し可能に</li>
+        </ul>
+      ]]></description>
+      <sparkle:version>1.3.1</sparkle:version>
+      <sparkle:shortVersionString>1.3.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 29 Mar 2026 04:00:00 +0900</pubDate>
+      <enclosure
+        url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.3.1/MacFolderView.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="3+STkGsMmMvVBYo9v/G9M7+0s/7lCtenSydf3I/862LgcVzyrdQYqS4vjI2EO3WATTbPLHI3tegFj35yEJVxAg=="
+        length="1649759"
+      />
+    </item>
+
+    <item>
       <title>Version 1.3.0</title>
       <description><![CDATA[
         <h2>v1.3.0 の新機能</h2>
