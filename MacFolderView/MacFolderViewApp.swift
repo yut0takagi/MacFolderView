@@ -23,7 +23,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: KeyablePanel!
     private var clickMonitor: Any?
     private var updaterController: SPUStandardUpdaterController!
-    private var clipboardPanel: NSPanel?
+
+    // 独立ポップアップ
+    private var clipboardPopupPanel: KeyablePanel?
+    private var quickOpenPanel: KeyablePanel?
+    private var popupClickMonitor: Any?
 
     // ViewModelを共有するためにここで保持
     static var sharedViewModel: FolderViewModel?
@@ -69,7 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.animationBehavior = .utilityWindow
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
-        // キーイベントを受け取れるようにする
         panel.becomesKeyOnlyIfNeeded = false
 
         // グローバルホットキー登録
@@ -81,7 +84,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyRefs: [EventHotKeyRef] = []
 
     private func registerGlobalHotkeys() {
-        // Carbon Event Handler（全ホットキー共通）
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
         InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
@@ -90,9 +92,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             EventParamType(typeEventHotKeyID), nil,
                             MemoryLayout<EventHotKeyID>.size, nil, &hotkeyID)
             Task { @MainActor in
+                let appDelegate = NSApp.delegate as? AppDelegate
                 switch hotkeyID.id {
-                case 1: AppDelegate.showClipboardPopup()
-                case 2: AppDelegate.showQuickOpen()
+                case 1: appDelegate?.toggleClipboardPopup()
+                case 2: appDelegate?.toggleQuickOpenPopup()
                 default: break
                 }
             }
@@ -101,8 +104,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Cmd+Shift+V: クリップボード履歴
         registerHotkey(keyCode: UInt32(kVK_ANSI_V), modifiers: UInt32(cmdKey | shiftKey), id: 1)
-        // Cmd+P: クイックオープン
-        registerHotkey(keyCode: UInt32(kVK_ANSI_P), modifiers: UInt32(cmdKey), id: 2)
+        // Cmd+Shift+P: クイックオープン（Cmd+Pは他アプリの印刷と競合するため）
+        registerHotkey(keyCode: UInt32(kVK_ANSI_P), modifiers: UInt32(cmdKey | shiftKey), id: 2)
     }
 
     private func registerHotkey(keyCode: UInt32, modifiers: UInt32, id: UInt32) {
@@ -115,26 +118,107 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @MainActor
-    static func ensurePanelVisible() {
-        let appDelegate = NSApp.delegate as? AppDelegate
-        if let panel = appDelegate?.panel, !panel.isVisible {
-            appDelegate?.togglePanel()
+    // MARK: - Clipboard Popup
+
+    private func toggleClipboardPopup() {
+        if let existing = clipboardPopupPanel, existing.isVisible {
+            dismissPopup(existing)
+            return
+        }
+        guard let viewModel = AppDelegate.sharedViewModel else { return }
+
+        let view = ClipboardPopupView(viewModel: viewModel) { [weak self] in
+            if let p = self?.clipboardPopupPanel { self?.dismissPopup(p) }
+        }
+        let panel = makePopupPanel(content: view, width: 360, height: 400)
+        clipboardPopupPanel = panel
+        showPopupAtCenter(panel)
+    }
+
+    // MARK: - Quick Open Popup
+
+    private func toggleQuickOpenPopup() {
+        if let existing = quickOpenPanel, existing.isVisible {
+            dismissPopup(existing)
+            return
+        }
+        guard let viewModel = AppDelegate.sharedViewModel else { return }
+
+        let view = QuickOpenPopupView(viewModel: viewModel) { [weak self] in
+            if let p = self?.quickOpenPanel { self?.dismissPopup(p) }
+        }
+        let panel = makePopupPanel(content: view, width: 440, height: 52)
+        quickOpenPanel = panel
+        showPopupAtCenter(panel)
+    }
+
+    // MARK: - Popup Helpers
+
+    private func makePopupPanel<V: View>(content: V, width: CGFloat, height: CGFloat) -> KeyablePanel {
+        let hosting = NSHostingView(rootView: content.frame(width: width, height: height))
+        let p = KeyablePanel(
+            contentRect: NSRect(x: 0, y: 0, width: width, height: height),
+            styleMask: [.fullSizeContentView, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        p.contentView = hosting
+        p.isFloatingPanel = true
+        p.level = .popUpMenu
+        p.titleVisibility = .hidden
+        p.titlebarAppearsTransparent = true
+        p.isMovable = false
+        p.backgroundColor = .clear
+        p.isOpaque = false
+        p.hasShadow = true
+        p.animationBehavior = .utilityWindow
+        p.isReleasedWhenClosed = false
+        p.becomesKeyOnlyIfNeeded = false
+        return p
+    }
+
+    private func showPopupAtCenter(_ popup: KeyablePanel) {
+        guard let screen = NSScreen.main else { return }
+        let screenFrame = screen.visibleFrame
+        let x = screenFrame.midX - popup.frame.width / 2
+        let y = screenFrame.midY + 100
+        popup.setFrameOrigin(NSPoint(x: x, y: y))
+        popup.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        // 外をクリックしたら閉じる
+        startPopupClickMonitor(for: popup)
+    }
+
+    private func dismissPopup(_ popup: KeyablePanel) {
+        popup.orderOut(nil)
+        stopPopupClickMonitor()
+    }
+
+    private func startPopupClickMonitor(for popup: KeyablePanel) {
+        stopPopupClickMonitor()
+        popupClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self, weak popup] _ in
+            guard let popup, popup.isVisible else { return }
+            let point = NSEvent.mouseLocation
+            if !popup.frame.contains(point) {
+                self?.dismissPopup(popup)
+            }
         }
     }
 
-    @MainActor
-    static func showClipboardPopup() {
-        guard let viewModel = sharedViewModel else { return }
-        viewModel.showClipboardHistory.toggle()
-        ensurePanelVisible()
+    private func stopPopupClickMonitor() {
+        if let monitor = popupClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            popupClickMonitor = nil
+        }
     }
 
-    @MainActor
-    static func showQuickOpen() {
-        guard let viewModel = sharedViewModel else { return }
-        viewModel.showQuickOpen = true
-        ensurePanelVisible()
+    // MARK: - Main Panel
+
+    func openMainPanel() {
+        if !panel.isVisible {
+            togglePanel()
+        }
     }
 
     private func startClickMonitor() {
@@ -183,6 +267,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showStatusMenu() {
         let menu = NSMenu()
+
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let versionItem = NSMenuItem(title: "MacFolderView v\(version)", action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+
+        menu.addItem(.separator())
 
         let updateItem = NSMenuItem(title: "アップデートを確認...", action: #selector(checkForUpdates), keyEquivalent: "")
         updateItem.target = self

@@ -13,19 +13,21 @@
       <description><![CDATA[
         <h2>v1.3.1</h2>
         <ul>
+          <li>⌘⇧V — 独立クリップボード履歴ポップアップ。選んで即ペースト</li>
+          <li>⌘⇧P — 独立クイックオープンポップアップ。パス入力で即移動</li>
           <li>キーボードショートカットが効かない問題を修正</li>
-          <li>⌘⇧V（クリップボード履歴）と⌘P（クイックオープン）をグローバルホットキー化 — どのアプリからでも呼び出し可能に</li>
+          <li>右クリックメニューにバージョン情報を表示</li>
         </ul>
       ]]></description>
       <sparkle:version>1.3.1</sparkle:version>
       <sparkle:shortVersionString>1.3.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <pubDate>Sat, 29 Mar 2026 04:00:00 +0900</pubDate>
+      <pubDate>Sat, 29 Mar 2026 04:30:00 +0900</pubDate>
       <enclosure
         url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.3.1/MacFolderView.zip"
         type="application/octet-stream"
-        sparkle:edSignature="3+STkGsMmMvVBYo9v/G9M7+0s/7lCtenSydf3I/862LgcVzyrdQYqS4vjI2EO3WATTbPLHI3tegFj35yEJVxAg=="
-        length="1649759"
+        sparkle:edSignature="2oHQFZjX9L4+puNo1KYFVpuRHFj+KWrMvzoPOnqEqmD5xyOZkem7TEbpB8sJpZvq2vFFrSEsyNsHhx5JFf2VDw=="
+        length="1686686"
       />
     </item>
 
