@@ -9,6 +9,27 @@
     <language>ja</language>
 
     <item>
+      <title>Version 1.2.1</title>
+      <description><![CDATA[
+        <h2>v1.2.1</h2>
+        <ul>
+          <li>アプリアイコンがFinderで正しく表示されるよう修正</li>
+          <li>Sparkle.frameworkのランタイムパスを修正</li>
+        </ul>
+      ]]></description>
+      <sparkle:version>1.2.1</sparkle:version>
+      <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 29 Mar 2026 01:30:00 +0900</pubDate>
+      <enclosure
+        url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.2.1/MacFolderView.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="kayFhLyedA8VFVv+5T1nuTNL5dGbKGORuJ4j3LY/U1HNIesLSHEMGEbGOAF7fNaVShRHhv1TQRnAy3ljob/oBQ=="
+        length="1519116"
+      />
+    </item>
+
+    <item>
       <title>Version 1.2.0</title>
       <description><![CDATA[
         <h2>v1.2.0 の新機能</h2>
