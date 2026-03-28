@@ -208,6 +208,10 @@ struct FolderBrowserView: View {
                 viewModel.openTerminalHere()
             }
 
+            ToolbarIconButton("cursorarrow.click.2", help: "Cursorで開く") {
+                viewModel.openInCursor(viewModel.currentPath)
+            }
+
             ToolbarIconButton("arrow.clockwise", help: "再読み込み") {
                 viewModel.loadItems()
             }
@@ -338,6 +342,13 @@ struct FolderBrowserView: View {
                                     onRevealInFinder: {
                                         viewModel.openInFinder(item.url)
                                     },
+                                    onOpenInCursor: item.isDirectory ? {
+                                        viewModel.openInCursor(item.url)
+                                    } : nil,
+                                    isPinned: viewModel.isPinned(item.url),
+                                    onTogglePin: item.isDirectory ? {
+                                        viewModel.togglePin(item.url)
+                                    } : nil,
                                     onSelect: {
                                         viewModel.selectedItems.removeAll()
                                         viewModel.selectedItem = item

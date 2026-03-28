@@ -22,6 +22,7 @@ final class FolderViewModel: ObservableObject {
     @Published var renameText = ""
     @Published var selectedItems: Set<URL> = []
     @Published var recentFolders: [URL] = []
+    @Published var pinnedFolders: [URL] = []
 
     enum SortOrder: String, CaseIterable {
         case name = "名前"
@@ -105,8 +106,13 @@ final class FolderViewModel: ObservableObject {
         return formatter.string(fromByteCount: totalSize)
     }
 
+    private static let pinnedFoldersKey = "pinnedFolders"
+
     init(path: URL = FileManager.default.homeDirectoryForCurrentUser) {
         self.currentPath = path
+        if let paths = UserDefaults.standard.stringArray(forKey: Self.pinnedFoldersKey) {
+            self.pinnedFolders = paths.map { URL(fileURLWithPath: $0) }
+        }
         loadItems()
     }
 
@@ -344,6 +350,13 @@ final class FolderViewModel: ObservableObject {
         }
     }
 
+    func openInCursor(_ url: URL) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", "Cursor", url.path]
+        try? process.run()
+    }
+
     func openTerminalHere() {
         let path = currentPath.path
         let escaped = path
@@ -395,6 +408,25 @@ final class FolderViewModel: ObservableObject {
         } else {
             trashSelected()
         }
+    }
+
+    // MARK: - Pinned Folders
+
+    func isPinned(_ url: URL) -> Bool {
+        pinnedFolders.contains(url)
+    }
+
+    func togglePin(_ url: URL) {
+        if let idx = pinnedFolders.firstIndex(of: url) {
+            pinnedFolders.remove(at: idx)
+        } else {
+            pinnedFolders.append(url)
+        }
+        savePinnedFolders()
+    }
+
+    private func savePinnedFolders() {
+        UserDefaults.standard.set(pinnedFolders.map(\.path), forKey: Self.pinnedFoldersKey)
     }
 
     // MARK: - Recent Folders

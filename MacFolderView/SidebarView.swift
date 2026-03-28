@@ -18,6 +18,29 @@ struct SidebarView: View {
                 }
             }
 
+            // ピン留め
+            if !viewModel.pinnedFolders.isEmpty {
+                SidebarSectionHeader(title: "ピン留め")
+                    .padding(.top, 8)
+
+                ForEach(viewModel.pinnedFolders, id: \.self) { url in
+                    SidebarRow(
+                        name: url.lastPathComponent,
+                        icon: "pin.fill",
+                        isActive: viewModel.currentPath == url
+                    ) {
+                        viewModel.navigateTo(url)
+                    }
+                    .contextMenu {
+                        Button {
+                            viewModel.togglePin(url)
+                        } label: {
+                            Label("ピン留めを外す", systemImage: "pin.slash")
+                        }
+                    }
+                }
+            }
+
             // 最近のフォルダ
             if !viewModel.recentFolders.isEmpty {
                 SidebarSectionHeader(title: "最近")

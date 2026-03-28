@@ -8,6 +8,9 @@ struct FileRowView: View {
     let onNavigate: () -> Void
     let onOpen: () -> Void
     let onRevealInFinder: () -> Void
+    var onOpenInCursor: (() -> Void)?
+    var isPinned: Bool = false
+    var onTogglePin: (() -> Void)?
     let onSelect: () -> Void
     let onCmdSelect: () -> Void
     let onShiftSelect: () -> Void
@@ -161,6 +164,16 @@ struct FileRowView: View {
             }
             Button { onRevealInFinder() } label: {
                 Label("Finderで表示", systemImage: "folder")
+            }
+            if let onOpenInCursor, item.isDirectory {
+                Button { onOpenInCursor() } label: {
+                    Label("Cursorで開く", systemImage: "cursorarrow.click.2")
+                }
+            }
+            if let onTogglePin, item.isDirectory {
+                Button { onTogglePin() } label: {
+                    Label(isPinned ? "ピン留めを外す" : "ピン留め", systemImage: isPinned ? "pin.slash" : "pin")
+                }
             }
             Divider()
             Button { onStartRename() } label: {
