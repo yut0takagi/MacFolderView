@@ -67,8 +67,14 @@ EOF
 # rpathにFrameworksを追加
 install_name_tool -add_rpath @loader_path/../Frameworks "$APP/Contents/MacOS/MacFolderView" 2>/dev/null || true
 
-# ad-hoc署名
-codesign --force --deep --sign - "$APP"
+# 内側から外側へ順番にad-hoc署名
+SPARKLE_DIR="$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+codesign --force --sign - "$SPARKLE_DIR/XPCServices/Installer.xpc"
+codesign --force --sign - "$SPARKLE_DIR/XPCServices/Downloader.xpc"
+codesign --force --sign - "$SPARKLE_DIR/Autoupdate"
+codesign --force --sign - "$SPARKLE_DIR/Updater.app"
+codesign --force --sign - "$APP/Contents/Frameworks/Sparkle.framework"
+codesign --force --sign - "$APP"
 echo "✓ 署名完了"
 
 # ZIP作成
