@@ -28,6 +28,7 @@ final class FolderViewModel: ObservableObject {
     @Published var showStage = false
     @Published var clipboardHistory: [ClipboardEntry] = []
     @Published var showClipboardHistory = false
+    @Published var clipboardSelectedIndex = 0
 
     struct ClipboardEntry: Identifiable, Equatable {
         let id = UUID()

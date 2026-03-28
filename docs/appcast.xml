@@ -9,6 +9,28 @@
     <language>ja</language>
 
     <item>
+      <title>Version 1.3.2</title>
+      <description><![CDATA[
+        <h2>v1.3.2</h2>
+        <ul>
+          <li>⌘⇧V クリップボード履歴: ↑↓で選択、Enterで元のアプリに自動ペースト</li>
+          <li>⌥Space クイックオープン: 即入力可能、Enterでファイルブラウザが開く</li>
+          <li>グローバルホットキーがどのアプリからでも確実に動作するよう改善</li>
+        </ul>
+      ]]></description>
+      <sparkle:version>1.3.2</sparkle:version>
+      <sparkle:shortVersionString>1.3.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 29 Mar 2026 05:30:00 +0900</pubDate>
+      <enclosure
+        url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.3.2/MacFolderView.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="CGy5yhQsRjbCzVEgKy5d0n2WyW3U6mq6g+khvlON6H94/V/CwnhF9AhICUGKgoZkwTv/OcIEpMn/0aqXOW3ZAQ=="
+        length="1684952"
+      />
+    </item>
+
+    <item>
       <title>Version 1.3.1</title>
       <description><![CDATA[
         <h2>v1.3.1</h2>

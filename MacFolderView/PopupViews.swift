@@ -7,8 +7,6 @@ struct ClipboardPopupView: View {
     @ObservedObject var viewModel: FolderViewModel
     let onDismiss: () -> Void
 
-    @State private var selectedIndex = 0
-
     var body: some View {
         VStack(spacing: 0) {
             // ヘッダー
@@ -51,10 +49,12 @@ struct ClipboardPopupView: View {
                         ForEach(Array(viewModel.clipboardHistory.enumerated()), id: \.element.id) { index, entry in
                             ClipboardPopupRow(
                                 entry: entry,
-                                isSelected: index == selectedIndex,
+                                isSelected: index == viewModel.clipboardSelectedIndex,
                                 index: index
                             ) {
-                                pasteEntry(entry)
+                                viewModel.clipboardSelectedIndex = index
+                                viewModel.copyFromHistory(entry)
+                                onDismiss()
                             }
                         }
                     }
@@ -98,44 +98,6 @@ struct ClipboardPopupView: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
-        .onKeyPress(.escape) {
-            onDismiss()
-            return .handled
-        }
-        .onKeyPress(.upArrow) {
-            if selectedIndex > 0 { selectedIndex -= 1 }
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            if selectedIndex < viewModel.clipboardHistory.count - 1 { selectedIndex += 1 }
-            return .handled
-        }
-        .onKeyPress(.return) {
-            if selectedIndex < viewModel.clipboardHistory.count {
-                pasteEntry(viewModel.clipboardHistory[selectedIndex])
-            }
-            return .handled
-        }
-        .focusable()
-    }
-
-    private func pasteEntry(_ entry: FolderViewModel.ClipboardEntry) {
-        viewModel.copyFromHistory(entry)
-        onDismiss()
-        // 少し待ってから元のアプリにペースト
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            simulatePaste()
-        }
-    }
-
-    private func simulatePaste() {
-        let src = CGEventSource(stateID: .combinedSessionState)
-        let keyDown = CGEvent(keyboardEventSource: src, virtualKey: 0x09, keyDown: true) // V
-        let keyUp = CGEvent(keyboardEventSource: src, virtualKey: 0x09, keyDown: false)
-        keyDown?.flags = .maskCommand
-        keyUp?.flags = .maskCommand
-        keyDown?.post(tap: .cghidEventTap)
-        keyUp?.post(tap: .cghidEventTap)
     }
 }
 
@@ -188,7 +150,7 @@ private struct ClipboardPopupRow: View {
     }
 }
 
-// MARK: - Quick Open Popup (⌘⇧P)
+// MARK: - Quick Open Popup (⌥Space)
 
 struct QuickOpenPopupView: View {
     @ObservedObject var viewModel: FolderViewModel
@@ -214,7 +176,7 @@ struct QuickOpenPopupView: View {
                     onDismiss()
                 }
 
-            Text("⌘⇧P")
+            Text("⌥Space")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, 6)
@@ -245,11 +207,15 @@ struct QuickOpenPopupView: View {
             } else {
                 viewModel.navigateTo(url.deletingLastPathComponent())
             }
-            // メインパネルも開く
-            if let appDelegate = NSApp.delegate as? AppDelegate {
-                appDelegate.openMainPanel()
+            onDismiss()
+            // ポップアップ閉じてからメインパネルを開く
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if let appDelegate = NSApp.delegate as? AppDelegate {
+                    appDelegate.openMainPanel()
+                }
             }
+        } else {
+            onDismiss()
         }
-        onDismiss()
     }
 }
