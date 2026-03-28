@@ -1,27 +1,30 @@
 #!/bin/bash
 set -e
 
+VERSION="${1:?Usage: ./release.sh <version>}"
 cd "$(dirname "$0")"
 
-VERSION="${VERSION:-1.2.0}"
+echo "=== MacFolderView v${VERSION} リリースビルド ==="
 
-# ビルド
-swift build 2>&1
+# リリースビルド
+swift build -c release 2>&1
 
 # .appバンドル作成
-APP="$PWD/.build/MacFolderView.app"
-rm -rf "$APP"
+DIST="$PWD/dist"
+APP="$DIST/MacFolderView.app"
+rm -rf "$DIST"
 mkdir -p "$APP/Contents/MacOS"
 mkdir -p "$APP/Contents/Frameworks"
 mkdir -p "$APP/Contents/Resources"
 
 # 実行ファイルをコピー
-cp .build/debug/MacFolderView "$APP/Contents/MacOS/MacFolderView"
+cp .build/release/MacFolderView "$APP/Contents/MacOS/MacFolderView"
 
 # Sparkle.frameworkをバンドル
 SPARKLE_FW="$(find .build/artifacts -name "Sparkle.framework" -path "*/macos*" -type d | head -1)"
 if [ -n "$SPARKLE_FW" ]; then
     cp -R "$SPARKLE_FW" "$APP/Contents/Frameworks/"
+    echo "✓ Sparkle.framework をバンドル"
 fi
 
 # Info.plist
@@ -58,13 +61,31 @@ EOF
 
 # ad-hoc署名
 codesign --force --deep --sign - "$APP"
+echo "✓ 署名完了"
 
-echo "✓ ビルド完了: $APP"
+# ZIP作成
+cd "$DIST"
+rm -f MacFolderView.zip
+ditto -c -k --keepParent MacFolderView.app MacFolderView.zip
+cd ..
 
-# 既存プロセスを終了
-killall MacFolderView 2>/dev/null || true
-sleep 0.5
+echo "✓ ZIP作成: dist/MacFolderView.zip"
 
-# 起動
-open "$APP"
-echo "✓ 起動しました"
+# EdDSA署名
+SIGN_TOOL=".build/artifacts/sparkle/Sparkle/bin/sign_update"
+if [ -x "$SIGN_TOOL" ]; then
+    echo ""
+    echo "=== Sparkle EdDSA署名 ==="
+    SIGN_OUTPUT=$("$SIGN_TOOL" dist/MacFolderView.zip)
+    echo "$SIGN_OUTPUT"
+    echo ""
+    echo "appcast.xml の enclosure に上記の値を設定してください"
+else
+    echo "⚠ sign_update が見つかりません"
+fi
+
+ZIP_SIZE=$(stat -f%z dist/MacFolderView.zip)
+echo ""
+echo "=== リリース情報 ==="
+echo "バージョン: ${VERSION}"
+echo "ファイル: dist/MacFolderView.zip (${ZIP_SIZE} bytes)"

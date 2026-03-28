@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>MacFolderView Updates</title>
+    <link>https://yut0takagi.github.io/MacFolderView/appcast.xml</link>
+    <description>MacFolderView update feed</description>
+    <language>ja</language>
+
+    <item>
+      <title>Version 1.2.0</title>
+      <description><![CDATA[
+        <h2>v1.2.0 の新機能</h2>
+        <ul>
+          <li><strong>自動アップデート</strong> — Sparkle統合。次回以降のアップデートは自動通知されます</li>
+          <li><strong>Cursorで開く</strong> — ツールバー＆右クリックメニューからCursorでフォルダを開けます</li>
+          <li><strong>フォルダのピン留め</strong> — よく使うフォルダをサイドバーにピン留め（永続化対応）</li>
+          <li><strong>右クリックメニュー</strong> — メニューバーアイコンの右クリックでアップデート確認・終了</li>
+        </ul>
+      ]]></description>
+      <sparkle:version>1.2.0</sparkle:version>
+      <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 29 Mar 2026 00:00:00 +0900</pubDate>
+      <enclosure
+        url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.2.0/MacFolderView.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="jtZtYkWoGeiZKz/9nuvMz1L7iYdyinxGYRbkvRMuR6ES3svzXDeIj6G2tWOVAFpbrMxQI+SJ1Pic1VIwKkDDCQ=="
+        length="1339795"
+      />
+    </item>
+  </channel>
+</rss>

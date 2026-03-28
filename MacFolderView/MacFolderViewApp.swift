@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Sparkle
 
 @main
 struct MacFolderViewApp: App {
@@ -14,13 +15,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var panel: NSPanel!
     private var clickMonitor: Any?
+    private var updaterController: SPUStandardUpdaterController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Sparkle auto-update
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "MacFolderView")
-            button.action = #selector(togglePanel)
+            button.action = #selector(statusItemClicked)
             button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
         let content = NSHostingView(rootView: FolderBrowserView().frame(width: 560, height: 580))
@@ -61,7 +71,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func togglePanel() {
+    @objc private func statusItemClicked() {
+        guard let event = NSApp.currentEvent else { return }
+        if event.type == .rightMouseUp {
+            showStatusMenu()
+        } else {
+            togglePanel()
+        }
+    }
+
+    private func togglePanel() {
         if panel.isVisible {
             panel.orderOut(nil)
             stopClickMonitor()
@@ -75,5 +94,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             panel.makeKeyAndOrderFront(nil)
             startClickMonitor()
         }
+    }
+
+    private func showStatusMenu() {
+        let menu = NSMenu()
+
+        let updateItem = NSMenuItem(title: "アップデートを確認...", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
+
+        menu.addItem(.separator())
+
+        let quitItem = NSMenuItem(title: "MacFolderView を終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(quitItem)
+
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    @objc private func checkForUpdates() {
+        updaterController.checkForUpdates(nil)
     }
 }
