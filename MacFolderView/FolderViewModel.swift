@@ -35,14 +35,25 @@ final class FolderViewModel: ObservableObject {
         case none, forward, backward
     }
 
-    struct FavoriteFolder: Identifiable {
-        let id = UUID()
+    struct FavoriteFolder: Identifiable, Equatable {
+        let id: String  // パスをIDとして使用
         let name: String
         let icon: String
         let url: URL
+
+        init(name: String, icon: String, url: URL) {
+            self.id = url.path
+            self.name = name
+            self.icon = icon
+            self.url = url
+        }
     }
 
-    var favorites: [FavoriteFolder] {
+    @Published var favorites: [FavoriteFolder] = []
+
+    private static let favoritesKey = "customFavorites"
+
+    private static var defaultFavorites: [FavoriteFolder] {
         let home = FileManager.default.homeDirectoryForCurrentUser
         return [
             FavoriteFolder(name: "ホーム", icon: "house.fill", url: home),
@@ -52,6 +63,50 @@ final class FolderViewModel: ObservableObject {
             FavoriteFolder(name: "開発", icon: "chevron.left.forwardslash.chevron.right", url: home.appending(path: "Develop")),
             FavoriteFolder(name: "ピクチャ", icon: "photo.fill", url: home.appending(path: "Pictures")),
         ].filter { FileManager.default.fileExists(atPath: $0.url.path) }
+    }
+
+    private func loadFavorites() {
+        guard let saved = UserDefaults.standard.array(forKey: Self.favoritesKey) as? [[String: String]] else {
+            favorites = Self.defaultFavorites
+            return
+        }
+        favorites = saved.compactMap { dict in
+            guard let name = dict["name"], let icon = dict["icon"], let path = dict["path"] else { return nil }
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: path) else { return nil }
+            return FavoriteFolder(name: name, icon: icon, url: url)
+        }
+        if favorites.isEmpty { favorites = Self.defaultFavorites }
+    }
+
+    private func saveFavorites() {
+        let data = favorites.map { ["name": $0.name, "icon": $0.icon, "path": $0.url.path] }
+        UserDefaults.standard.set(data, forKey: Self.favoritesKey)
+    }
+
+    func moveFavorite(from source: IndexSet, to destination: Int) {
+        favorites.move(fromOffsets: source, toOffset: destination)
+        saveFavorites()
+    }
+
+    func removeFavorite(_ fav: FavoriteFolder) {
+        favorites.removeAll { $0.id == fav.id }
+        saveFavorites()
+    }
+
+    func addFavorite(_ url: URL) {
+        guard !favorites.contains(where: { $0.url == url }) else { return }
+        favorites.append(FavoriteFolder(name: url.lastPathComponent, icon: "folder.fill", url: url))
+        saveFavorites()
+    }
+
+    func isFavorite(_ url: URL) -> Bool {
+        favorites.contains { $0.url == url }
+    }
+
+    func resetFavorites() {
+        UserDefaults.standard.removeObject(forKey: Self.favoritesKey)
+        favorites = Self.defaultFavorites
     }
 
     var filteredItems: [FileItem] {
@@ -113,6 +168,7 @@ final class FolderViewModel: ObservableObject {
         if let paths = UserDefaults.standard.stringArray(forKey: Self.pinnedFoldersKey) {
             self.pinnedFolders = paths.map { URL(fileURLWithPath: $0) }
         }
+        loadFavorites()
         loadItems()
     }
 
@@ -243,6 +299,31 @@ final class FolderViewModel: ObservableObject {
         } catch {
             errorMessage = "移動できません: \(error.localizedDescription)"
         }
+    }
+
+    func copyItemsHere(_ urls: [URL]) {
+        let fm = FileManager.default
+        for url in urls {
+            // 同一フォルダ内の場合はスキップ
+            if url.deletingLastPathComponent() == currentPath { continue }
+            var dest = currentPath.appending(path: url.lastPathComponent)
+            // 名前が重複する場合はリネーム
+            var counter = 2
+            let name = url.deletingPathExtension().lastPathComponent
+            let ext = url.pathExtension
+            while fm.fileExists(atPath: dest.path) {
+                let newName = ext.isEmpty ? "\(name) \(counter)" : "\(name) \(counter).\(ext)"
+                dest = currentPath.appending(path: newName)
+                counter += 1
+            }
+            do {
+                try fm.copyItem(at: url, to: dest)
+            } catch {
+                errorMessage = "コピーできません: \(error.localizedDescription)"
+                break
+            }
+        }
+        loadItems()
     }
 
     func moveItemsToTrash(_ urls: [URL]) {
@@ -422,6 +503,11 @@ final class FolderViewModel: ObservableObject {
         } else {
             pinnedFolders.append(url)
         }
+        savePinnedFolders()
+    }
+
+    func movePinnedFolder(from source: IndexSet, to destination: Int) {
+        pinnedFolders.move(fromOffsets: source, toOffset: destination)
         savePinnedFolders()
     }
 

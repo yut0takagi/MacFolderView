@@ -349,6 +349,16 @@ struct FolderBrowserView: View {
                                     onTogglePin: item.isDirectory ? {
                                         viewModel.togglePin(item.url)
                                     } : nil,
+                                    isFavorite: viewModel.isFavorite(item.url),
+                                    onToggleFavorite: item.isDirectory ? {
+                                        if viewModel.isFavorite(item.url) {
+                                            if let fav = viewModel.favorites.first(where: { $0.url == item.url }) {
+                                                viewModel.removeFavorite(fav)
+                                            }
+                                        } else {
+                                            viewModel.addFavorite(item.url)
+                                        }
+                                    } : nil,
                                     onSelect: {
                                         viewModel.selectedItems.removeAll()
                                         viewModel.selectedItem = item
@@ -395,6 +405,12 @@ struct FolderBrowserView: View {
                     }
                 }
             }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            let external = urls.filter { $0.deletingLastPathComponent() != viewModel.currentPath }
+            guard !external.isEmpty else { return false }
+            viewModel.copyItemsHere(external)
+            return true
         }
     }
 

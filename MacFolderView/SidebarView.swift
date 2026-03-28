@@ -16,6 +16,22 @@ struct SidebarView: View {
                 ) {
                     viewModel.navigateTo(fav.url)
                 }
+                .contextMenu {
+                    Button {
+                        viewModel.removeFavorite(fav)
+                    } label: {
+                        Label("お気に入りから削除", systemImage: "star.slash")
+                    }
+                    Divider()
+                    Button {
+                        viewModel.resetFavorites()
+                    } label: {
+                        Label("デフォルトに戻す", systemImage: "arrow.counterclockwise")
+                    }
+                }
+            }
+            .onMove { source, destination in
+                viewModel.moveFavorite(from: source, to: destination)
             }
 
             // ピン留め
@@ -38,6 +54,9 @@ struct SidebarView: View {
                             Label("ピン留めを外す", systemImage: "pin.slash")
                         }
                     }
+                }
+                .onMove { source, destination in
+                    viewModel.movePinnedFolder(from: source, to: destination)
                 }
             }
 

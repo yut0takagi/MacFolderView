@@ -11,6 +11,8 @@ struct FileRowView: View {
     var onOpenInCursor: (() -> Void)?
     var isPinned: Bool = false
     var onTogglePin: (() -> Void)?
+    var isFavorite: Bool = false
+    var onToggleFavorite: (() -> Void)?
     let onSelect: () -> Void
     let onCmdSelect: () -> Void
     let onShiftSelect: () -> Void
@@ -173,6 +175,11 @@ struct FileRowView: View {
             if let onTogglePin, item.isDirectory {
                 Button { onTogglePin() } label: {
                     Label(isPinned ? "ピン留めを外す" : "ピン留め", systemImage: isPinned ? "pin.slash" : "pin")
+                }
+            }
+            if let onToggleFavorite, item.isDirectory {
+                Button { onToggleFavorite() } label: {
+                    Label(isFavorite ? "お気に入りから削除" : "お気に入りに追加", systemImage: isFavorite ? "star.slash" : "star")
                 }
             }
             Divider()

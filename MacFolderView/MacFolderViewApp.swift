@@ -27,11 +27,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "MacFolderView")
+            updateStatusItemIcon(button)
             button.action = #selector(statusItemClicked)
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+
+        // ダーク/ライトモード切替を監視
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(appearanceChanged),
+            name: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil
+        )
 
         let content = NSHostingView(rootView: FolderBrowserView().frame(width: 560, height: 580))
         panel = NSPanel(
@@ -115,5 +123,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func checkForUpdates() {
         updaterController.checkForUpdates(nil)
+    }
+
+    @objc private func appearanceChanged() {
+        if let button = statusItem.button {
+            updateStatusItemIcon(button)
+        }
+    }
+
+    private func updateStatusItemIcon(_ button: NSStatusBarButton) {
+        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+        let image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: "MacFolderView")?
+            .withSymbolConfiguration(config)
+        image?.isTemplate = true
+        button.image = image
     }
 }
