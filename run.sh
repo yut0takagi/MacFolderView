@@ -18,6 +18,9 @@ mkdir -p "$APP/Contents/Resources"
 # 実行ファイルをコピー
 cp .build/debug/MacFolderView "$APP/Contents/MacOS/MacFolderView"
 
+# アイコンをコピー
+cp MacFolderView/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
 # Sparkle.frameworkをバンドル
 SPARKLE_FW="$(find .build/artifacts -name "Sparkle.framework" -path "*/macos*" -type d | head -1)"
 if [ -n "$SPARKLE_FW" ]; then
@@ -42,6 +45,8 @@ cat > "$APP/Contents/Info.plist" << EOF
     <string>${VERSION}</string>
     <key>CFBundleVersion</key>
     <string>${VERSION}</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSUIElement</key>
     <true/>
     <key>NSSupportsAutomaticTermination</key>
