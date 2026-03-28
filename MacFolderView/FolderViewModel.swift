@@ -23,6 +23,54 @@ final class FolderViewModel: ObservableObject {
     @Published var selectedItems: Set<URL> = []
     @Published var recentFolders: [URL] = []
     @Published var pinnedFolders: [URL] = []
+    @Published var clipboardURLs: [URL] = []
+    @Published var stagedFiles: [URL] = []
+    @Published var showStage = false
+    @Published var clipboardHistory: [ClipboardEntry] = []
+    @Published var showClipboardHistory = false
+
+    struct ClipboardEntry: Identifiable, Equatable {
+        let id = UUID()
+        let content: String
+        let type: EntryType
+        let date: Date
+
+        enum EntryType: Equatable {
+            case text
+            case filePath
+        }
+
+        var icon: String {
+            switch type {
+            case .text: return "doc.plaintext"
+            case .filePath: return "folder"
+            }
+        }
+
+        var preview: String {
+            let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.count > 80 {
+                return String(trimmed.prefix(80)) + "…"
+            }
+            return trimmed
+        }
+    }
+    @Published var showQuickOpen = false
+    @Published var quickOpenText = ""
+    @Published var showPreviewPanel = false
+    @Published var customApps: [CustomApp] = []
+
+    struct CustomApp: Identifiable, Equatable {
+        let id: String
+        let name: String
+        let bundleId: String
+
+        init(name: String, bundleId: String) {
+            self.id = bundleId
+            self.name = name
+            self.bundleId = bundleId
+        }
+    }
 
     enum SortOrder: String, CaseIterable {
         case name = "名前"
@@ -169,7 +217,9 @@ final class FolderViewModel: ObservableObject {
             self.pinnedFolders = paths.map { URL(fileURLWithPath: $0) }
         }
         loadFavorites()
+        loadCustomApps()
         loadItems()
+        startClipboardMonitoring()
     }
 
     func loadItems() {
@@ -524,6 +574,243 @@ final class FolderViewModel: ObservableObject {
             recentFolders = Array(recentFolders.prefix(5))
         }
     }
+
+    // MARK: - Clipboard
+
+    func copySelectedFiles() {
+        var urls: [URL] = []
+        if !selectedItems.isEmpty {
+            urls = Array(selectedItems)
+        } else if let item = selectedItem {
+            urls = [item.url]
+        }
+        guard !urls.isEmpty else { return }
+        clipboardURLs = urls
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.writeObjects(urls as [NSURL])
+    }
+
+    func pasteFiles() {
+        guard !clipboardURLs.isEmpty else { return }
+        copyItemsHere(clipboardURLs)
+    }
+
+    // MARK: - Clipboard History
+
+    private var clipboardChangeCount = 0
+    private var clipboardTimer: Timer?
+
+    func startClipboardMonitoring() {
+        clipboardChangeCount = NSPasteboard.general.changeCount
+        clipboardTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkClipboard()
+            }
+        }
+    }
+
+    private func checkClipboard() {
+        let pb = NSPasteboard.general
+        guard pb.changeCount != clipboardChangeCount else { return }
+        clipboardChangeCount = pb.changeCount
+
+        // ファイルURL
+        if let urls = pb.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty {
+            for url in urls {
+                let entry = ClipboardEntry(content: url.path, type: .filePath, date: Date())
+                addClipboardEntry(entry)
+            }
+            return
+        }
+
+        // テキスト
+        if let text = pb.string(forType: .string), !text.isEmpty {
+            let entry = ClipboardEntry(content: text, type: .text, date: Date())
+            addClipboardEntry(entry)
+        }
+    }
+
+    private func addClipboardEntry(_ entry: ClipboardEntry) {
+        // 同じ内容の重複を除去
+        clipboardHistory.removeAll { $0.content == entry.content }
+        clipboardHistory.insert(entry, at: 0)
+        // 最大30件
+        if clipboardHistory.count > 30 {
+            clipboardHistory = Array(clipboardHistory.prefix(30))
+        }
+    }
+
+    func copyFromHistory(_ entry: ClipboardEntry) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(entry.content, forType: .string)
+    }
+
+    func removeClipboardEntry(_ entry: ClipboardEntry) {
+        clipboardHistory.removeAll { $0.id == entry.id }
+    }
+
+    func clearClipboardHistory() {
+        clipboardHistory.removeAll()
+    }
+
+    // MARK: - Stage (一時格納)
+
+    func stageSelected() {
+        if !selectedItems.isEmpty {
+            for url in selectedItems where !stagedFiles.contains(url) {
+                stagedFiles.append(url)
+            }
+        } else if let item = selectedItem, !stagedFiles.contains(item.url) {
+            stagedFiles.append(item.url)
+        }
+        showStage = true
+    }
+
+    func stageFile(_ url: URL) {
+        guard !stagedFiles.contains(url) else { return }
+        stagedFiles.append(url)
+        showStage = true
+    }
+
+    func unstageFile(_ url: URL) {
+        stagedFiles.removeAll { $0 == url }
+        if stagedFiles.isEmpty { showStage = false }
+    }
+
+    func clearStage() {
+        stagedFiles.removeAll()
+        showStage = false
+    }
+
+    func pasteStageHere() {
+        guard !stagedFiles.isEmpty else { return }
+        copyItemsHere(stagedFiles)
+        clearStage()
+    }
+
+    func moveStageHere() {
+        guard !stagedFiles.isEmpty else { return }
+        let fm = FileManager.default
+        for url in stagedFiles {
+            let dest = currentPath.appending(path: url.lastPathComponent)
+            if url.deletingLastPathComponent() == currentPath { continue }
+            do {
+                try fm.moveItem(at: url, to: dest)
+            } catch {
+                errorMessage = "移動できません: \(error.localizedDescription)"
+                break
+            }
+        }
+        clearStage()
+        loadItems()
+    }
+
+    // MARK: - Quick Open
+
+    func performQuickOpen() {
+        let path = quickOpenText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else { return }
+        let expanded = NSString(string: path).expandingTildeInPath
+        let url = URL(fileURLWithPath: expanded)
+        if FileManager.default.fileExists(atPath: url.path) {
+            var isDir: ObjCBool = false
+            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+            if isDir.boolValue {
+                navigateTo(url)
+            } else {
+                navigateTo(url.deletingLastPathComponent())
+            }
+        }
+        showQuickOpen = false
+        quickOpenText = ""
+    }
+
+    // MARK: - Custom Apps
+
+    private static let customAppsKey = "customApps"
+
+    private func loadCustomApps() {
+        guard let saved = UserDefaults.standard.array(forKey: Self.customAppsKey) as? [[String: String]] else {
+            customApps = defaultCustomApps()
+            return
+        }
+        customApps = saved.compactMap { dict in
+            guard let name = dict["name"], let bundleId = dict["bundleId"] else { return nil }
+            return CustomApp(name: name, bundleId: bundleId)
+        }
+        if customApps.isEmpty { customApps = defaultCustomApps() }
+    }
+
+    private func defaultCustomApps() -> [CustomApp] {
+        var apps: [CustomApp] = []
+        // 検出できるアプリだけ追加
+        let candidates: [(String, String)] = [
+            ("Cursor", "com.todesktop.230313mzl4w4u92"),
+            ("VS Code", "com.microsoft.VSCode"),
+            ("Terminal", "com.apple.Terminal"),
+        ]
+        for (name, bundleId) in candidates {
+            if NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) != nil {
+                apps.append(CustomApp(name: name, bundleId: bundleId))
+            }
+        }
+        return apps
+    }
+
+    func saveCustomApps() {
+        let data = customApps.map { ["name": $0.name, "bundleId": $0.bundleId] }
+        UserDefaults.standard.set(data, forKey: Self.customAppsKey)
+    }
+
+    func addCustomApp(name: String, bundleId: String) {
+        guard !customApps.contains(where: { $0.bundleId == bundleId }) else { return }
+        customApps.append(CustomApp(name: name, bundleId: bundleId))
+        saveCustomApps()
+    }
+
+    func removeCustomApp(_ app: CustomApp) {
+        customApps.removeAll { $0.id == app.id }
+        saveCustomApps()
+    }
+
+    func openWith(_ app: CustomApp, url: URL) {
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleId) {
+            NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
+        }
+    }
+
+    // MARK: - Shell Commands
+
+    func runShellCommand(_ command: String, on urls: [URL]) {
+        let paths = urls.map { $0.path }
+        let joined = paths.map { "\"\($0)\"" }.joined(separator: " ")
+        let fullCommand = command.replacingOccurrences(of: "{}", with: joined)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-c", "cd \"\(currentPath.path)\" && \(fullCommand)"]
+        try? process.run()
+        // リロードして結果を反映
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.loadItems()
+        }
+    }
+
+    func compressSelected() {
+        var urls: [URL] = []
+        if !selectedItems.isEmpty {
+            urls = Array(selectedItems)
+        } else if let item = selectedItem {
+            urls = [item.url]
+        }
+        guard !urls.isEmpty else { return }
+        let names = urls.map { "\"\($0.lastPathComponent)\"" }.joined(separator: " ")
+        let archiveName = urls.count == 1 ? urls[0].deletingPathExtension().lastPathComponent + ".zip" : "Archive.zip"
+        runShellCommand("zip -r \"\(archiveName)\" \(names)", on: [])
+    }
+
+    // MARK: - Quick Look
 
     func quickLookSelected() {
         guard let item = selectedItem else { return }

@@ -38,11 +38,29 @@ struct FolderBrowserView: View {
 
                     Divider()
 
-                    // File list
-                    fileListView
-                        .id(transitionId)
-                        .transition(.opacity)
+                    // File list + Preview panel
+                    HStack(spacing: 0) {
+                        fileListView
+                            .id(transitionId)
+                            .transition(.opacity)
+
+                        if viewModel.showPreviewPanel {
+                            Divider()
+                            previewPanel
+                                .frame(width: 200)
+                        }
+                    }
                 }
+            }
+
+            // Stage tray
+            Divider()
+            stageView
+
+            // Clipboard history
+            if viewModel.showClipboardHistory {
+                Divider()
+                clipboardHistoryView
             }
 
             Divider()
@@ -126,7 +144,47 @@ struct FolderBrowserView: View {
             viewModel.startRename()
             return .handled
         }
+        .onKeyPress(characters: CharacterSet(charactersIn: "c"), phases: .down) { press in
+            if press.modifiers.contains(.command) {
+                viewModel.copySelectedFiles()
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "v"), phases: .down) { press in
+            if press.modifiers.contains(.command) {
+                viewModel.pasteFiles()
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "p"), phases: .down) { press in
+            if press.modifiers.contains(.command) {
+                viewModel.showQuickOpen = true
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "i"), phases: .down) { press in
+            if press.modifiers.contains(.command) {
+                viewModel.showPreviewPanel.toggle()
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "v"), phases: .down) { press in
+            if press.modifiers.contains(.command) && press.modifiers.contains(.shift) {
+                viewModel.showClipboardHistory.toggle()
+                return .handled
+            }
+            return .ignored
+        }
         .focusable()
+        .overlay {
+            if viewModel.showQuickOpen {
+                quickOpenOverlay
+            }
+        }
     }
 
     // MARK: - Toolbar
@@ -210,6 +268,12 @@ struct FolderBrowserView: View {
 
             ToolbarIconButton("cursorarrow.click.2", help: "Cursorで開く") {
                 viewModel.openInCursor(viewModel.currentPath)
+            }
+
+            ToolbarIconButton("sidebar.right", help: "プレビュー (⌘I)") {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.showPreviewPanel.toggle()
+                }
             }
 
             ToolbarIconButton("arrow.clockwise", help: "再読み込み") {
@@ -359,6 +423,17 @@ struct FolderBrowserView: View {
                                             viewModel.addFavorite(item.url)
                                         }
                                     } : nil,
+                                    customApps: viewModel.customApps,
+                                    onOpenWith: { app in
+                                        viewModel.openWith(app, url: item.url)
+                                    },
+                                    onCompress: {
+                                        viewModel.selectedItem = item
+                                        viewModel.compressSelected()
+                                    },
+                                    onStage: {
+                                        viewModel.stageFile(item.url)
+                                    },
                                     onSelect: {
                                         viewModel.selectedItems.removeAll()
                                         viewModel.selectedItem = item
@@ -473,6 +548,18 @@ struct FolderBrowserView: View {
             Spacer()
 
             Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    viewModel.showClipboardHistory.toggle()
+                }
+            } label: {
+                Image(systemName: "clipboard")
+                    .font(.system(size: 11))
+                    .foregroundStyle(viewModel.showClipboardHistory ? Color.accentColor : Color.secondary.opacity(0.5))
+            }
+            .buttonStyle(.plain)
+            .help("クリップボード履歴")
+
+            Button {
                 NSApp.terminate(nil)
             } label: {
                 Image(systemName: "xmark.circle.fill")
@@ -485,5 +572,386 @@ struct FolderBrowserView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(.bar)
+    }
+
+    // MARK: - Quick Open
+
+    @FocusState private var isQuickOpenFocused: Bool
+
+    private var quickOpenOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .onTapGesture {
+                    viewModel.showQuickOpen = false
+                    viewModel.quickOpenText = ""
+                }
+
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                    TextField("パスを入力 (~/Desktop, /usr/local...)", text: $viewModel.quickOpenText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 14))
+                        .focused($isQuickOpenFocused)
+                        .onSubmit {
+                            viewModel.performQuickOpen()
+                        }
+                        .onExitCommand {
+                            viewModel.showQuickOpen = false
+                            viewModel.quickOpenText = ""
+                        }
+                }
+                .padding(12)
+                .background(.ultraThickMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .shadow(color: .black.opacity(0.2), radius: 20, y: 10)
+                .frame(maxWidth: 400)
+                .padding(.top, 80)
+
+                Spacer()
+            }
+        }
+        .onAppear { isQuickOpenFocused = true }
+    }
+
+    // MARK: - Preview Panel
+
+    private var previewPanel: some View {
+        VStack(spacing: 0) {
+            if let item = viewModel.selectedItem {
+                // アイコン
+                VStack(spacing: 10) {
+                    Image(nsImage: {
+                        let img = item.nsImage
+                        img.size = NSSize(width: 64, height: 64)
+                        return img
+                    }())
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 64, height: 64)
+
+                    Text(item.name)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 20)
+                .padding(.horizontal, 12)
+
+                Divider()
+                    .padding(.vertical, 10)
+
+                // 詳細情報
+                VStack(alignment: .leading, spacing: 6) {
+                    previewInfoRow("種類", item.kindDescription)
+                    if !item.isDirectory {
+                        previewInfoRow("サイズ", item.formattedSize)
+                    } else if let count = item.formattedChildCount {
+                        previewInfoRow("項目数", count)
+                    }
+                    previewInfoRow("変更日", item.formattedDate)
+                    previewInfoRow("パス", item.url.path)
+                }
+                .padding(.horizontal, 12)
+
+                Spacer()
+            } else {
+                Spacer()
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.tertiary)
+                Text("ファイルを選択")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
+        }
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
+    }
+
+    // MARK: - Clipboard History
+
+    private var clipboardHistoryView: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "clipboard")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                Text("クリップボード履歴")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                if !viewModel.clipboardHistory.isEmpty {
+                    Button {
+                        viewModel.clearClipboardHistory()
+                    } label: {
+                        Text("クリア")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    viewModel.showClipboardHistory = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+
+            if viewModel.clipboardHistory.isEmpty {
+                Text("まだ履歴がありません")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.quaternary)
+                    .padding(.vertical, 8)
+            } else {
+                ScrollView {
+                    VStack(spacing: 2) {
+                        ForEach(viewModel.clipboardHistory) { entry in
+                            ClipboardHistoryRow(entry: entry) {
+                                viewModel.copyFromHistory(entry)
+                            } onDelete: {
+                                viewModel.removeClipboardEntry(entry)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 4)
+                }
+                .frame(maxHeight: 140)
+            }
+        }
+        .background(.bar)
+    }
+
+    // MARK: - Stage Tray
+
+    @State private var isStageDropTarget = false
+
+    private var stageView: some View {
+        VStack(spacing: 0) {
+            if viewModel.stagedFiles.isEmpty && !isStageDropTarget {
+                // 空の時: 最小限のドロップゾーン
+                HStack(spacing: 5) {
+                    Image(systemName: "tray.and.arrow.down")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.quaternary)
+                    Text("ドロップでステージ")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.quaternary)
+                    Spacer()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+            } else if !viewModel.stagedFiles.isEmpty {
+                // ファイルがある時: フル表示
+                HStack {
+                    Image(systemName: "tray.full")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Text("ステージ (\(viewModel.stagedFiles.count))")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button {
+                        viewModel.pasteStageHere()
+                    } label: {
+                        Text("ここにコピー")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+
+                    Button {
+                        viewModel.moveStageHere()
+                    } label: {
+                        Text("ここに移動")
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+
+                    Button {
+                        viewModel.clearStage()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("クリア")
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(viewModel.stagedFiles, id: \.self) { url in
+                            HStack(spacing: 4) {
+                                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                                    .resizable()
+                                    .frame(width: 14, height: 14)
+                                Text(url.lastPathComponent)
+                                    .font(.system(size: 10))
+                                    .lineLimit(1)
+                                Button {
+                                    viewModel.unstageFile(url)
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 7, weight: .bold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(Color.primary.opacity(0.06))
+                            )
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 5)
+                }
+            }
+        }
+        .background(.bar)
+        .dropDestination(for: URL.self) { urls, _ in
+            for url in urls {
+                viewModel.stageFile(url)
+            }
+            return !urls.isEmpty
+        } isTargeted: { targeted in
+            isStageDropTarget = targeted
+        }
+        .overlay {
+            if isStageDropTarget {
+                stageDropPopup
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(duration: 0.25), value: isStageDropTarget)
+    }
+
+    private var stageDropPopup: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                Image(systemName: "tray.and.arrow.down.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.accentColor)
+            }
+            Text("ドロップしてステージ")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.primary)
+            if !viewModel.stagedFiles.isEmpty {
+                Text("現在 \(viewModel.stagedFiles.count) 件")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThickMaterial)
+                .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 1.5)
+        )
+    }
+
+    private func previewInfoRow(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .textCase(.uppercase)
+            Text(value)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .truncationMode(.middle)
+        }
+    }
+}
+
+// MARK: - Clipboard History Row
+
+private struct ClipboardHistoryRow: View {
+    let entry: FolderViewModel.ClipboardEntry
+    let onCopy: () -> Void
+    let onDelete: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: entry.icon)
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+                .frame(width: 14)
+
+            Text(entry.preview)
+                .font(.system(size: 10))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if isHovered {
+                Button {
+                    onCopy()
+                } label: {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 9))
+                        .foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain)
+                .help("コピー")
+
+                Button {
+                    onDelete()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text(entry.date.formatted(.dateTime.hour().minute()))
+                    .font(.system(size: 8))
+                    .foregroundStyle(.quaternary)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .fill(isHovered ? Color.primary.opacity(0.06) : Color.clear)
+        )
+        .onHover { h in
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isHovered = h
+            }
+        }
+        .onTapGesture {
+            onCopy()
+        }
     }
 }

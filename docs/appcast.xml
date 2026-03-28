@@ -9,6 +9,36 @@
     <language>ja</language>
 
     <item>
+      <title>Version 1.3.0</title>
+      <description><![CDATA[
+        <h2>v1.3.0 の新機能</h2>
+        <ul>
+          <li><strong>Finderからドラッグ&amp;ドロップ</strong> — ファイルをFinderからドロップしてコピー</li>
+          <li><strong>お気に入りカスタマイズ</strong> — 追加・削除・並び替えが可能に（右クリックメニュー）</li>
+          <li><strong>ピン留めの並び替え</strong> — サイドバーでドラッグして順序変更</li>
+          <li><strong>アダプティブアイコン</strong> — ダーク/ライトモードに合わせてメニューバーアイコンが自動切替</li>
+          <li><strong>クリップボード対応</strong> — ⌘C / ⌘V でファイルのコピー＆ペースト</li>
+          <li><strong>クリップボード履歴</strong> — ⌘⇧V でコピー履歴を表示、ワンクリックで再コピー</li>
+          <li><strong>クイックオープン</strong> — ⌘P でパスを直接入力して移動</li>
+          <li><strong>プレビューパネル</strong> — ⌘I でファイル情報を右側に表示</li>
+          <li><strong>アプリで開く</strong> — 右クリックからCursor, VS Code, Terminal等で開く</li>
+          <li><strong>圧縮</strong> — 右クリックからZIP圧縮</li>
+          <li><strong>ステージ</strong> — ファイルを一時格納してまとめてコピー/移動（D&amp;D対応）</li>
+        </ul>
+      ]]></description>
+      <sparkle:version>1.3.0</sparkle:version>
+      <sparkle:shortVersionString>1.3.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 29 Mar 2026 03:00:00 +0900</pubDate>
+      <enclosure
+        url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.3.0/MacFolderView.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="k8i38bvef0mF63J8ft6dDYcPMvbyQyFV/ZVZ6J37SaOsPoCAtXynbni0hVpmX9QuFi9pcgS6ImvLp2IurdcUCQ=="
+        length="1644399"
+      />
+    </item>
+
+    <item>
       <title>Version 1.2.1</title>
       <description><![CDATA[
         <h2>v1.2.1</h2>

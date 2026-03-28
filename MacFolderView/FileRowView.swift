@@ -13,6 +13,10 @@ struct FileRowView: View {
     var onTogglePin: (() -> Void)?
     var isFavorite: Bool = false
     var onToggleFavorite: (() -> Void)?
+    var customApps: [FolderViewModel.CustomApp] = []
+    var onOpenWith: ((FolderViewModel.CustomApp) -> Void)?
+    var onCompress: (() -> Void)?
+    var onStage: (() -> Void)?
     let onSelect: () -> Void
     let onCmdSelect: () -> Void
     let onShiftSelect: () -> Void
@@ -188,6 +192,28 @@ struct FileRowView: View {
             }
             Button { onDuplicate() } label: {
                 Label("複製", systemImage: "plus.square.on.square")
+            }
+            if let onCompress {
+                Button { onCompress() } label: {
+                    Label("圧縮", systemImage: "archivebox")
+                }
+            }
+            if !customApps.isEmpty, let onOpenWith {
+                Divider()
+                Menu {
+                    ForEach(customApps) { app in
+                        Button { onOpenWith(app) } label: {
+                            Text(app.name)
+                        }
+                    }
+                } label: {
+                    Label("アプリで開く", systemImage: "arrow.up.forward.app")
+                }
+            }
+            if let onStage {
+                Button { onStage() } label: {
+                    Label("ステージに追加", systemImage: "tray.and.arrow.down")
+                }
             }
             Divider()
             Button {
