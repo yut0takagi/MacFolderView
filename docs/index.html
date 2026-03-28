@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MacFolderView - メニューバーで動く軽量ファイルブラウザ</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #888;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Hero */
+    .hero {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .hero-icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .hero .tagline {
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+    }
+
+    /* Download button */
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-size: 17px;
+      font-weight: 600;
+      padding: 14px 32px;
+      border-radius: 12px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .download-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    .download-btn:active { transform: translateY(0); }
+    .download-btn svg { width: 20px; height: 20px; }
+    .version-info {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Features */
+    .features {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .feature-icon { font-size: 28px; margin-bottom: 8px; }
+    .feature h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .feature p { font-size: 13px; color: var(--text-muted); }
+
+    /* Install guide */
+    .install {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+    }
+    .install h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .steps {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+    }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .step:last-child { margin-bottom: 0; }
+    .step-num {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .step-content h4 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+    .step-content p { font-size: 13px; color: var(--text-muted); }
+
+    /* Gatekeeper warning */
+    .warning {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px 60px;
+    }
+    .warning-box {
+      background: #1a1500;
+      border: 1px solid #3d3200;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .warning-box h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #fbbf24;
+    }
+    .warning-box p {
+      font-size: 13px;
+      color: #d4a017;
+      margin-bottom: 8px;
+    }
+    .warning-box ol {
+      font-size: 13px;
+      color: #d4a017;
+      padding-left: 20px;
+    }
+    .warning-box li { margin-bottom: 4px; }
+
+    /* Requirements */
+    .requirements {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+      text-align: center;
+    }
+    .requirements p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    footer a { color: var(--text-muted); }
+
+    @media (max-width: 600px) {
+      .hero { padding: 48px 20px 40px; }
+      .hero h1 { font-size: 28px; }
+      .features { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <div class="hero-icon">📂</div>
+    <h1>MacFolderView</h1>
+    <p class="tagline">メニューバーからワンクリック。<br>軽量なファイルブラウザ for macOS</p>
+    <a class="download-btn" href="https://github.com/yut0takagi/MacFolderView/releases/latest/download/MacFolderView.zip">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      ダウンロード（macOS）
+    </a>
+    <p class="version-info">v1.0.0 · macOS 14+ · Apple Silicon</p>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <div class="feature-icon">⚡</div>
+      <h3>メニューバー常駐</h3>
+      <p>Dockに表示されず、メニューバーからすぐアクセス。作業の邪魔になりません。</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📁</div>
+      <h3>サイドバー</h3>
+      <p>ホーム・デスクトップ・書類など、よく使うフォルダにワンクリックで移動。</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔍</div>
+      <h3>検索とソート</h3>
+      <p>名前・日付・サイズ・種類でソート。リアルタイム検索で素早くファイルを発見。</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⌨️</div>
+      <h3>キーボード操作</h3>
+      <p>矢印キーで移動、Enterで開く、スペースでQuick Look。マウスなしで操作可能。</p>
+    </div>
+  </section>
+
+  <section class="install">
+    <h2>インストール方法</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>ダウンロード</h4>
+          <p>上のボタンから MacFolderView.zip をダウンロードします。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>解凍して移動</h4>
+          <p>ZIPを解凍し、MacFolderView.app を「アプリケーション」フォルダにドラッグ&ドロップします。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>初回起動</h4>
+          <p>アプリを右クリック →「開く」を選択してください（下記の注意事項を参照）。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>完了</h4>
+          <p>メニューバーにフォルダアイコンが表示されます。クリックして使い始めましょう。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="warning">
+    <div class="warning-box">
+      <h3>⚠ 初回起動時の「開発元が未確認」警告について</h3>
+      <p>このアプリはAppleの署名がないため、初回起動時に警告が表示されます。以下の手順で開いてください：</p>
+      <ol>
+        <li>MacFolderView.app を<strong>右クリック</strong>（またはControlキー+クリック）</li>
+        <li>メニューから<strong>「開く」</strong>を選択</li>
+        <li>確認ダイアログが表示されたら、もう一度<strong>「開く」</strong>をクリック</li>
+      </ol>
+      <p>※ 2回目以降は通常どおりダブルクリックで起動できます。</p>
+    </div>
+  </section>
+
+  <section class="requirements">
+    <p>動作環境：macOS 14 (Sonoma) 以降 · Apple Silicon (M1/M2/M3/M4)</p>
+  </section>
+
+  <footer>
+    <a href="https://github.com/yut0takagi/MacFolderView">GitHub</a>
+  </footer>
+
+</body>
+</html>
