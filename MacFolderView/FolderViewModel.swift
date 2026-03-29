@@ -35,25 +35,76 @@ final class FolderViewModel: ObservableObject {
         let content: String
         let type: EntryType
         let date: Date
+        let isPinned: Bool
+        let imageData: Data?  // 画像コピー用
+        let fileURLs: [URL]   // ファイルコピー用
+
+        init(content: String, type: EntryType, date: Date, isPinned: Bool = false, imageData: Data? = nil, fileURLs: [URL] = []) {
+            self.content = content
+            self.type = type
+            self.date = date
+            self.isPinned = isPinned
+            self.imageData = imageData
+            self.fileURLs = fileURLs
+        }
 
         enum EntryType: Equatable {
             case text
             case filePath
+            case image
+            case files
         }
 
         var icon: String {
             switch type {
             case .text: return "doc.plaintext"
             case .filePath: return "folder"
+            case .image: return "photo"
+            case .files: return "doc.on.doc"
             }
         }
 
+        var isFilePath: Bool {
+            type == .filePath
+        }
+
+        var fileURL: URL? {
+            guard isFilePath else { return nil }
+            let path = content.trimmingCharacters(in: .whitespacesAndNewlines)
+            let expanded = NSString(string: path).expandingTildeInPath
+            let url = URL(fileURLWithPath: expanded)
+            return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        }
+
         var preview: String {
-            let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.count > 80 {
-                return String(trimmed.prefix(80)) + "…"
+            switch type {
+            case .image:
+                return "画像"
+            case .files:
+                if fileURLs.count == 1 {
+                    return fileURLs[0].lastPathComponent
+                }
+                return "\(fileURLs.count) 個のファイル"
+            default:
+                let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.count > 80 {
+                    return String(trimmed.prefix(80)) + "…"
+                }
+                return trimmed
             }
-            return trimmed
+        }
+
+        var thumbnail: NSImage? {
+            if let imageData, let img = NSImage(data: imageData) {
+                return img
+            }
+            if type == .files, let first = fileURLs.first {
+                return NSWorkspace.shared.icon(forFile: first.path)
+            }
+            if let url = fileURL {
+                return NSWorkspace.shared.icon(forFile: url.path)
+            }
+            return nil
         }
     }
     @Published var showQuickOpen = false
@@ -613,39 +664,162 @@ final class FolderViewModel: ObservableObject {
 
     private func checkClipboard() {
         let pb = NSPasteboard.general
+
         guard pb.changeCount != clipboardChangeCount else { return }
         clipboardChangeCount = pb.changeCount
 
-        // ファイルURL
-        if let urls = pb.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty {
-            for url in urls {
-                let entry = ClipboardEntry(content: url.path, type: .filePath, date: Date())
+        let types = pb.types ?? []
+
+        // 1. ファイルコピー — 複数の形式に対応
+        let fileURLs = detectFileURLs(from: pb, types: types)
+        if !fileURLs.isEmpty {
+            if fileURLs.count == 1 {
+                let entry = ClipboardEntry(content: fileURLs[0].lastPathComponent, type: .files, date: Date(), fileURLs: fileURLs)
+                addClipboardEntry(entry)
+            } else {
+                let names = fileURLs.map(\.lastPathComponent).joined(separator: ", ")
+                let entry = ClipboardEntry(content: names, type: .files, date: Date(), fileURLs: fileURLs)
                 addClipboardEntry(entry)
             }
             return
         }
 
-        // テキスト
+        // 2. 画像コピー（スクショ、デザインツール等）— テキストが無い場合のみ画像として扱う
+        if !types.contains(.string),
+           let imgData = pb.data(forType: .tiff) ?? pb.data(forType: .png) {
+            let thumbData: Data?
+            if let img = NSImage(data: imgData) {
+                let thumbSize = NSSize(width: 64, height: 64)
+                let thumb = NSImage(size: thumbSize)
+                thumb.lockFocus()
+                img.draw(in: NSRect(origin: .zero, size: thumbSize),
+                         from: NSRect(origin: .zero, size: img.size),
+                         operation: .copy, fraction: 1.0)
+                thumb.unlockFocus()
+                thumbData = thumb.tiffRepresentation
+            } else {
+                thumbData = nil
+            }
+            let sizeStr = ByteCountFormatter.string(fromByteCount: Int64(imgData.count), countStyle: .file)
+            let entry = ClipboardEntry(content: "画像 (\(sizeStr))", type: .image, date: Date(), imageData: thumbData)
+            addClipboardEntry(entry)
+            return
+        }
+
+        // 3. テキスト（常にテキストとして記録）
         if let text = pb.string(forType: .string), !text.isEmpty {
             let entry = ClipboardEntry(content: text, type: .text, date: Date())
             addClipboardEntry(entry)
         }
     }
 
+    private func detectFileURLs(from pb: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> [URL] {
+        // 1. NSFilenamesPboardType (Finder)
+        let filenamesType = NSPasteboard.PasteboardType("NSFilenamesPboardType")
+        if types.contains(filenamesType),
+           let filenames = pb.propertyList(forType: filenamesType) as? [String] {
+            let urls = filenames.map { URL(fileURLWithPath: $0) }
+                .filter { FileManager.default.fileExists(atPath: $0.path) }
+            if !urls.isEmpty { return urls }
+        }
+
+        // 2. public.file-url / .fileURL
+        if types.contains(.fileURL),
+           let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] {
+            let existing = urls.filter { FileManager.default.fileExists(atPath: $0.path) }
+            if !existing.isEmpty { return existing }
+        }
+
+        // 3. code/file-list (Cursor/VS Code) — file:// URL形式
+        let codeFileList = NSPasteboard.PasteboardType("code/file-list")
+        if types.contains(codeFileList),
+           let data = pb.data(forType: codeFileList),
+           let text = String(data: data, encoding: .utf8) {
+            let lines = text.components(separatedBy: "\n").filter { !$0.isEmpty }
+            let urls = lines.compactMap { line -> URL? in
+                // file:///... 形式
+                if line.hasPrefix("file://"), let url = URL(string: line), url.isFileURL {
+                    return url
+                }
+                // /Users/... 形式
+                if line.hasPrefix("/") {
+                    return URL(fileURLWithPath: line)
+                }
+                return nil
+            }.filter { FileManager.default.fileExists(atPath: $0.path) }
+            if !urls.isEmpty { return urls }
+        }
+
+        // 4. dyn.* タイプで中身がファイルパスっぽいか試す
+        for type in types where type.rawValue.hasPrefix("dyn.") {
+            if let data = pb.data(forType: type),
+               let text = String(data: data, encoding: .utf8) {
+                let paths = text.components(separatedBy: "\n").filter { !$0.isEmpty }
+                let urls = paths.map { URL(fileURLWithPath: $0) }
+                    .filter { FileManager.default.fileExists(atPath: $0.path) }
+                if !urls.isEmpty { return urls }
+            }
+        }
+
+        return []
+    }
+
+    private func looksLikePath(_ text: String) -> Bool {
+        if text.contains("\n") { return false }
+        let expanded = NSString(string: text).expandingTildeInPath
+        if expanded.hasPrefix("/") && FileManager.default.fileExists(atPath: expanded) {
+            return true
+        }
+        return false
+    }
+
     private func addClipboardEntry(_ entry: ClipboardEntry) {
-        // 同じ内容の重複を除去
-        clipboardHistory.removeAll { $0.content == entry.content }
-        clipboardHistory.insert(entry, at: 0)
-        // 最大30件
-        if clipboardHistory.count > 30 {
-            clipboardHistory = Array(clipboardHistory.prefix(30))
+        // ピン留めは除外して重複チェック
+        clipboardHistory.removeAll { !$0.isPinned && $0.content == entry.content }
+        // ピン留めの後に挿入
+        let insertIndex = clipboardHistory.firstIndex(where: { !$0.isPinned }) ?? clipboardHistory.count
+        clipboardHistory.insert(entry, at: insertIndex)
+        // ピン以外が50件を超えたら削除
+        let unpinned = clipboardHistory.filter { !$0.isPinned }
+        if unpinned.count > 50 {
+            if let last = unpinned.last {
+                clipboardHistory.removeAll { $0.id == last.id }
+            }
         }
     }
 
     func copyFromHistory(_ entry: ClipboardEntry) {
         let pb = NSPasteboard.general
         pb.clearContents()
-        pb.setString(entry.content, forType: .string)
+        switch entry.type {
+        case .files:
+            let paths = entry.fileURLs.map(\.path)
+            pb.setPropertyList(paths, forType: NSPasteboard.PasteboardType("NSFilenamesPboardType"))
+        case .image:
+            if let data = entry.imageData {
+                pb.setData(data, forType: .tiff)
+            }
+        case .text, .filePath:
+            pb.setString(entry.content, forType: .string)
+        }
+        clipboardChangeCount = pb.changeCount
+    }
+
+    func togglePinEntry(_ entry: ClipboardEntry) {
+        guard let idx = clipboardHistory.firstIndex(where: { $0.id == entry.id }) else { return }
+        let old = clipboardHistory[idx]
+        let updated = ClipboardEntry(
+            content: old.content, type: old.type, date: old.date,
+            isPinned: !old.isPinned, imageData: old.imageData, fileURLs: old.fileURLs
+        )
+        clipboardHistory.remove(at: idx)
+        if updated.isPinned {
+            // ピン留めは先頭に
+            clipboardHistory.insert(updated, at: 0)
+        } else {
+            let insertIndex = clipboardHistory.firstIndex(where: { !$0.isPinned }) ?? clipboardHistory.count
+            clipboardHistory.insert(updated, at: insertIndex)
+        }
     }
 
     func removeClipboardEntry(_ entry: ClipboardEntry) {
@@ -653,7 +827,27 @@ final class FolderViewModel: ObservableObject {
     }
 
     func clearClipboardHistory() {
-        clipboardHistory.removeAll()
+        clipboardHistory.removeAll { !$0.isPinned }
+    }
+
+    func navigateToEntry(_ entry: ClipboardEntry) {
+        if let url = entry.fileURL {
+            var isDir: ObjCBool = false
+            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+            if isDir.boolValue {
+                navigateTo(url)
+            } else {
+                navigateTo(url.deletingLastPathComponent())
+            }
+        }
+    }
+
+    func searchClipboardHistory(_ query: String) -> [ClipboardEntry] {
+        if query.isEmpty { return clipboardHistory }
+        return clipboardHistory.filter {
+            $0.content.localizedCaseInsensitiveContains(query) ||
+            $0.preview.localizedCaseInsensitiveContains(query)
+        }
     }
 
     // MARK: - Stage (一時格納)

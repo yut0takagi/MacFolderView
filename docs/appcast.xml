@@ -9,6 +9,31 @@
     <language>ja</language>
 
     <item>
+      <title>Version 1.4.0</title>
+      <description><![CDATA[
+        <h2>v1.4.0 — Clipy上位互換クリップボード</h2>
+        <ul>
+          <li><strong>ファイルコピー履歴</strong> — Finder・Cursor・VS Codeでコピーしたファイルを記録。Enterでファイルとしてペースト</li>
+          <li><strong>画像コピー履歴</strong> — スクショ等のコピーをサムネイル付きで記録</li>
+          <li><strong>ピン留め</strong> — よく使うテキスト/ファイルを固定（クリアしても残る）</li>
+          <li><strong>テキスト/ファイル完全分離</strong> — テキストはテキスト、ファイルはファイルとしてペースト</li>
+          <li><strong>タイプ別バッジ</strong> — TXT / FILE / IMG で一目でわかる</li>
+          <li><strong>ステージ連携</strong> — ファイル履歴からステージに追加可能</li>
+        </ul>
+      ]]></description>
+      <sparkle:version>1.4.0</sparkle:version>
+      <sparkle:shortVersionString>1.4.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Sat, 29 Mar 2026 07:00:00 +0900</pubDate>
+      <enclosure
+        url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.4.0/MacFolderView.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="/TeNmHceVxMPMqml3ZXfqshtim3v+p9vr50veT/HN8hEFgRowymZjAKbPXsUdIH3DsLlPgUikCY/W3sLonAyBQ=="
+        length="1714894"
+      />
+    </item>
+
+    <item>
       <title>Version 1.3.2</title>
       <description><![CDATA[
         <h2>v1.3.2</h2>

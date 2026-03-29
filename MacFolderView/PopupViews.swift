@@ -14,7 +14,7 @@ struct ClipboardPopupView: View {
                 Image(systemName: "clipboard")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
-                Text("クリップボード履歴")
+                Text("クリップボード")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Text("⌘⇧V")
@@ -44,21 +44,50 @@ struct ClipboardPopupView: View {
                     Spacer()
                 }
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 1) {
-                        ForEach(Array(viewModel.clipboardHistory.enumerated()), id: \.element.id) { index, entry in
-                            ClipboardPopupRow(
-                                entry: entry,
-                                isSelected: index == viewModel.clipboardSelectedIndex,
-                                index: index
-                            ) {
-                                viewModel.clipboardSelectedIndex = index
-                                viewModel.copyFromHistory(entry)
-                                onDismiss()
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 1) {
+                            ForEach(Array(viewModel.clipboardHistory.enumerated()), id: \.element.id) { index, entry in
+                                ClipboardPopupRow(
+                                    entry: entry,
+                                    isSelected: index == viewModel.clipboardSelectedIndex,
+                                    index: index,
+                                    onSelect: {
+                                        viewModel.clipboardSelectedIndex = index
+                                        viewModel.copyFromHistory(entry)
+                                        onDismiss()
+                                    },
+                                    onPin: {
+                                        viewModel.togglePinEntry(entry)
+                                    },
+                                    onNavigate: entry.isFilePath ? {
+                                        viewModel.navigateToEntry(entry)
+                                        onDismiss()
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            (NSApp.delegate as? AppDelegate)?.openMainPanel()
+                                        }
+                                    } : nil,
+                                    onStage: entry.type == .files || entry.isFilePath ? {
+                                        for url in entry.fileURLs {
+                                            viewModel.stageFile(url)
+                                        }
+                                        if let url = entry.fileURL {
+                                            viewModel.stageFile(url)
+                                        }
+                                    } : nil
+                                )
+                                .id(entry.id)
+                            }
+                        }
+                        .padding(6)
+                    }
+                    .onChange(of: viewModel.clipboardSelectedIndex) { _, newValue in
+                        if newValue < viewModel.clipboardHistory.count {
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                proxy.scrollTo(viewModel.clipboardHistory[newValue].id, anchor: .center)
                             }
                         }
                     }
-                    .padding(6)
                 }
             }
 
@@ -66,6 +95,12 @@ struct ClipboardPopupView: View {
 
             // フッター
             HStack(spacing: 12) {
+                let pinCount = viewModel.clipboardHistory.filter(\.isPinned).count
+                if pinCount > 0 {
+                    Label("\(pinCount) ピン", systemImage: "pin.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.orange)
+                }
                 Text("\(viewModel.clipboardHistory.count) 件")
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
@@ -74,20 +109,15 @@ struct ClipboardPopupView: View {
                     Button {
                         viewModel.clearClipboardHistory()
                     } label: {
-                        Text("すべてクリア")
+                        Text("クリア(ピン以外)")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 }
-                Button {
-                    onDismiss()
-                } label: {
-                    Text("Esc で閉じる")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
+                Text("↑↓ 選択  ⏎ ペースト  Esc 閉じる")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.quaternary)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
@@ -106,36 +136,111 @@ private struct ClipboardPopupRow: View {
     let isSelected: Bool
     let index: Int
     let onSelect: () -> Void
+    var onPin: (() -> Void)?
+    var onNavigate: (() -> Void)?
+    var onStage: (() -> Void)?
 
     @State private var isHovered = false
 
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 8) {
-                // 番号
-                Text("\(index + 1)")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(isSelected ? Color.white : Color.secondary)
-                    .frame(width: 18, height: 18)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
-                    )
+                // ピンまたは番号
+                if entry.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.orange)
+                        .frame(width: 18, height: 18)
+                } else {
+                    Text("\(index + 1)")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(isSelected ? Color.white : Color.secondary)
+                        .frame(width: 18, height: 18)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(isSelected ? Color.accentColor : Color.primary.opacity(0.06))
+                        )
+                }
 
-                Image(systemName: entry.icon)
-                    .font(.system(size: 10))
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                    .frame(width: 14)
+                // サムネイルまたはアイコン
+                if let thumb = entry.thumbnail {
+                    Image(nsImage: thumb)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                } else {
+                    Image(systemName: entry.icon)
+                        .font(.system(size: 11))
+                        .foregroundStyle(entryColor)
+                        .frame(width: 20)
+                }
 
-                Text(entry.preview)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // 内容
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(entry.preview)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
 
-                Text(entry.date.formatted(.dateTime.hour().minute()))
-                    .font(.system(size: 9))
-                    .foregroundStyle(.quaternary)
+                    // ファイルパスのメタ情報
+                    if entry.isFilePath, let url = entry.fileURL {
+                        Text(url.deletingLastPathComponent().path)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // ホバー時のアクション
+                if isHovered {
+                    HStack(spacing: 4) {
+                        if let onNavigate {
+                            Button { onNavigate() } label: {
+                                Image(systemName: "arrow.right.circle")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                            .buttonStyle(.plain)
+                            .help("フォルダに移動")
+                        }
+                        if let onStage {
+                            Button { onStage() } label: {
+                                Image(systemName: "tray.and.arrow.down")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("ステージに追加")
+                        }
+                        if let onPin {
+                            Button { onPin() } label: {
+                                Image(systemName: entry.isPinned ? "pin.slash" : "pin")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(entry.isPinned ? .orange : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help(entry.isPinned ? "ピン解除" : "ピン留め")
+                        }
+                    }
+                } else {
+                    // タイプバッジ + 時刻
+                    HStack(spacing: 4) {
+                        Text(typeBadge)
+                            .font(.system(size: 8, weight: .medium))
+                            .foregroundStyle(entryColor.opacity(0.8))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(entryColor.opacity(0.1))
+                            )
+                        Text(entry.date.formatted(.dateTime.hour().minute()))
+                            .font(.system(size: 9))
+                            .foregroundStyle(.quaternary)
+                    }
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -147,6 +252,24 @@ private struct ClipboardPopupRow: View {
         }
         .buttonStyle(.plain)
         .onHover { h in isHovered = h }
+    }
+
+    private var typeBadge: String {
+        switch entry.type {
+        case .text: return "TXT"
+        case .filePath: return "PATH"
+        case .image: return "IMG"
+        case .files: return "FILE"
+        }
+    }
+
+    private var entryColor: Color {
+        switch entry.type {
+        case .text: return .secondary
+        case .filePath: return .blue
+        case .image: return .purple
+        case .files: return .green
+        }
     }
 }
 
@@ -208,7 +331,6 @@ struct QuickOpenPopupView: View {
                 viewModel.navigateTo(url.deletingLastPathComponent())
             }
             onDismiss()
-            // ポップアップ閉じてからメインパネルを開く
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 if let appDelegate = NSApp.delegate as? AppDelegate {
                     appDelegate.openMainPanel()
