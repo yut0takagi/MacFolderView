@@ -17,6 +17,12 @@ struct FileRowView: View {
     var onOpenWith: ((FolderViewModel.CustomApp) -> Void)?
     var onCompress: (() -> Void)?
     var onStage: (() -> Void)?
+    var onQuickLook: (() -> Void)?
+    var onCopyFile: (() -> Void)?
+    var onPaste: (() -> Void)?
+    var onGetInfo: (() -> Void)?
+    var onOpenTerminal: (() -> Void)?
+    var onNewFolder: (() -> Void)?
     let onSelect: () -> Void
     let onCmdSelect: () -> Void
     let onShiftSelect: () -> Void
@@ -168,12 +174,27 @@ struct FileRowView: View {
             Button { onOpen() } label: {
                 Label("開く", systemImage: "arrow.up.forward")
             }
+            if let onQuickLook {
+                Button { onQuickLook() } label: {
+                    Label("クイックルック", systemImage: "eye")
+                }
+            }
             Button { onRevealInFinder() } label: {
                 Label("Finderで表示", systemImage: "folder")
             }
             if let onOpenInCursor, item.isDirectory {
                 Button { onOpenInCursor() } label: {
                     Label("Cursorで開く", systemImage: "cursorarrow.click.2")
+                }
+            }
+            if let onOpenTerminal, item.isDirectory {
+                Button { onOpenTerminal() } label: {
+                    Label("ターミナルで開く", systemImage: "terminal")
+                }
+            }
+            if let onGetInfo {
+                Button { onGetInfo() } label: {
+                    Label("情報を見る", systemImage: "info.circle")
                 }
             }
             if let onTogglePin, item.isDirectory {
@@ -187,6 +208,16 @@ struct FileRowView: View {
                 }
             }
             Divider()
+            if let onCopyFile {
+                Button { onCopyFile() } label: {
+                    Label("コピー", systemImage: "doc.on.doc")
+                }
+            }
+            if let onPaste {
+                Button { onPaste() } label: {
+                    Label("ペースト", systemImage: "clipboard")
+                }
+            }
             Button { onStartRename() } label: {
                 Label("名前を変更", systemImage: "pencil")
             }
@@ -196,6 +227,11 @@ struct FileRowView: View {
             if let onCompress {
                 Button { onCompress() } label: {
                     Label("圧縮", systemImage: "archivebox")
+                }
+            }
+            if let onNewFolder {
+                Button { onNewFolder() } label: {
+                    Label("新規フォルダ", systemImage: "folder.badge.plus")
                 }
             }
             if !customApps.isEmpty, let onOpenWith {
@@ -216,11 +252,14 @@ struct FileRowView: View {
                 }
             }
             Divider()
+            ShareLink(item: item.url) {
+                Label("共有", systemImage: "square.and.arrow.up")
+            }
             Button {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(item.url.path, forType: .string)
             } label: {
-                Label("パスをコピー", systemImage: "doc.on.doc")
+                Label("パスをコピー", systemImage: "text.document")
             }
             Button {
                 NSPasteboard.general.clearContents()

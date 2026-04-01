@@ -35,6 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clickMonitor: Any?
     private var updaterController: SPUStandardUpdaterController!
 
+    private var documentWindow: NSWindow?
+
     // 独立ポップアップ
     private var clipboardPopupPanel: KeyablePanel?
     private var quickOpenPanel: KeyablePanel?
@@ -509,6 +511,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
+        let docItem = NSMenuItem(title: "ドキュメント", action: #selector(showDocument), keyEquivalent: "")
+        docItem.target = self
+        menu.addItem(docItem)
+
         let updateItem = NSMenuItem(title: "アップデートを確認...", action: #selector(checkForUpdates), keyEquivalent: "")
         updateItem.target = self
         menu.addItem(updateItem)
@@ -521,6 +527,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
+    }
+
+    @objc private func showDocument() {
+        if let window = documentWindow, window.isVisible {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 600),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "MacFolderView ドキュメント"
+        window.contentView = NSHostingView(rootView: DocumentView())
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        documentWindow = window
     }
 
     @objc private func checkForUpdates() {

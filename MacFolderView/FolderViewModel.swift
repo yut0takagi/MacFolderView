@@ -30,6 +30,8 @@ final class FolderViewModel: ObservableObject {
     @Published var showClipboardHistory = false
     @Published var clipboardSelectedIndex = 0
 
+    private var cancellables = Set<AnyCancellable>()
+
     struct ClipboardEntry: Identifiable, Equatable {
         let id = UUID()
         let content: String
@@ -152,6 +154,7 @@ final class FolderViewModel: ObservableObject {
     @Published var favorites: [FavoriteFolder] = []
 
     private static let favoritesKey = "customFavorites"
+    private static let showHiddenFilesKey = "showHiddenFiles"
 
     private static var defaultFavorites: [FavoriteFolder] {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -265,6 +268,7 @@ final class FolderViewModel: ObservableObject {
 
     init(path: URL = FileManager.default.homeDirectoryForCurrentUser) {
         self.currentPath = path
+        self.showHiddenFiles = UserDefaults.standard.bool(forKey: Self.showHiddenFilesKey)
         if let paths = UserDefaults.standard.stringArray(forKey: Self.pinnedFoldersKey) {
             self.pinnedFolders = paths.map { URL(fileURLWithPath: $0) }
         }
@@ -272,6 +276,10 @@ final class FolderViewModel: ObservableObject {
         loadCustomApps()
         loadItems()
         startClipboardMonitoring()
+        $showHiddenFiles
+            .dropFirst()
+            .sink { UserDefaults.standard.set($0, forKey: Self.showHiddenFilesKey) }
+            .store(in: &cancellables)
     }
 
     func loadItems() {
@@ -530,6 +538,37 @@ final class FolderViewModel: ObservableObject {
             }
         } catch {
             errorMessage = "フォルダを作成できません"
+        }
+    }
+
+    func getInfo(_ url: URL) {
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+        let script = """
+        tell application "Finder"
+            activate
+            open information window of (POSIX file "\(url.path)" as alias)
+        end tell
+        """
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+        }
+    }
+
+    func openTerminalAt(_ url: URL) {
+        let path = url.path
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let script = "tell application \"Terminal\"\nactivate\ndo script \"cd \\\"" + path + "\\\"\"\nend tell"
+        if let appleScript = NSAppleScript(source: script) {
+            var error: NSDictionary?
+            appleScript.executeAndReturnError(&error)
+            if error != nil {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                process.arguments = ["-a", "Terminal", url.path]
+                try? process.run()
+            }
         }
     }
 

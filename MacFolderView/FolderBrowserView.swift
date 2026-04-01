@@ -438,6 +438,26 @@ struct FolderBrowserView: View {
                                     onStage: {
                                         viewModel.stageFile(item.url)
                                     },
+                                    onQuickLook: {
+                                        viewModel.selectedItem = item
+                                        viewModel.quickLookSelected()
+                                    },
+                                    onCopyFile: {
+                                        viewModel.selectedItem = item
+                                        viewModel.copySelectedFiles()
+                                    },
+                                    onPaste: {
+                                        viewModel.pasteFiles()
+                                    },
+                                    onGetInfo: {
+                                        viewModel.getInfo(item.url)
+                                    },
+                                    onOpenTerminal: item.isDirectory ? {
+                                        viewModel.openTerminalAt(item.url)
+                                    } : nil,
+                                    onNewFolder: {
+                                        viewModel.createNewFolder()
+                                    },
                                     onSelect: {
                                         viewModel.selectedItems.removeAll()
                                         viewModel.selectedItem = item

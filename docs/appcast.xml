@@ -9,6 +9,28 @@
     <language>ja</language>
 
     <item>
+      <title>Version 1.4.0.1</title>
+      <description><![CDATA[
+        <h2>v1.4.0.1 — コンテキストメニュー拡充 & アプリ内ドキュメント</h2>
+        <ul>
+          <li><strong>右クリックメニュー拡充</strong> — クイックルック、ターミナルで開く、情報を見る、コピー、ペースト、新規フォルダ、共有を追加</li>
+          <li><strong>アプリ内ドキュメント</strong> — メニューバー右クリックから使い方・ショートカット一覧を確認</li>
+          <li><strong>隠しファイル設定の永続化</strong> — 表示/非表示の設定がアプリ再起動後も保持されるように</li>
+        </ul>
+      ]]></description>
+      <sparkle:version>1.4.0.1</sparkle:version>
+      <sparkle:shortVersionString>1.4.0.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 02 Apr 2026 00:00:00 +0900</pubDate>
+      <enclosure
+        url="https://github.com/yut0takagi/MacFolderView/releases/download/v1.4.0.1/MacFolderView.zip"
+        type="application/octet-stream"
+        sparkle:edSignature="XtCFcpjFu1/eYpkhs4IpQkH77CB8jCPViSNgmP6d3IYiUys8lrXsnsGG+nQKj1feIjDvVdznn3LYbHbhz0L4CQ=="
+        length="1758707"
+      />
+    </item>
+
+    <item>
       <title>Version 1.4.0</title>
       <description><![CDATA[
         <h2>v1.4.0 — Clipy上位互換クリップボード</h2>
